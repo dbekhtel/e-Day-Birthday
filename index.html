@@ -32,6 +32,21 @@
   <script>
     let eDigits = null;
 
+    const out = document.getElementById("out");
+    const btn = document.getElementById("go");
+    const dateInput = document.getElementById("date");
+
+    // Show hard errors instead of silently "sticking" on Loading...
+    window.addEventListener("error", (e) => {
+      out.textContent = `JS error: ${e.message}`;
+      btn.disabled = true;
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      const msg = e.reason?.message ?? String(e.reason);
+      out.textContent = `Promise error: ${msg}`;
+      btn.disabled = true;
+    });
+
     function mdyyKeyFromISO(iso) {
       // iso: "YYYY-MM-DD"
       const [Y, M, D] = iso.split("-").map(x => parseInt(x, 10));
@@ -41,27 +56,36 @@
     }
 
     async function loadDigits() {
-      const res = await fetch("eMillionDigits.txt", { cache: "force-cache" });
+      // Build a robust URL that works on GitHub Pages project sites too.
+      const digitsUrl = new URL("eMillionDigits.txt", window.location.href).toString();
+
+      out.textContent = `Fetching: ${digitsUrl}`;
+      const res = await fetch(digitsUrl, { cache: "no-store" });
+
       if (!res.ok) throw new Error(`Couldn't fetch digits file: ${res.status}`);
+
       let txt = await res.text();
+
       // clean: remove whitespace and decimal point if present
       txt = txt.replace(/\s+/g, "").replace(/\./g, "");
-      if (!/^\d+$/.test(txt)) throw new Error("Digits file doesn't look like digits after cleaning.");
+
+      if (!/^\d+$/.test(txt)) {
+        throw new Error("Digits file doesn't look like digits after cleaning.");
+      }
+
       return txt;
     }
 
     function searchKey(key) {
       const pos = eDigits.indexOf(key);
       if (pos === -1) return null;
+
       // show some context around the match
       const start = Math.max(0, pos - 60);
       const end = Math.min(eDigits.length, pos + key.length + 60);
+
       return { pos, context: eDigits.slice(start, end), start, end };
     }
-
-    const out = document.getElementById("out");
-    const btn = document.getElementById("go");
-    const dateInput = document.getElementById("date");
 
     (async () => {
       try {
@@ -75,16 +99,24 @@
 
     btn.addEventListener("click", () => {
       const iso = dateInput.value;
+
+      if (!eDigits) {
+        out.textContent = "Digits aren't loaded yet (or failed to load).";
+        return;
+      }
       if (!iso) {
         out.textContent = "Pick a date first.";
         return;
       }
+
       const key = mdyyKeyFromISO(iso);
       const hit = searchKey(key);
+
       if (!hit) {
         out.textContent = `Key: ${key}\nNot found in the loaded digits.`;
         return;
       }
+
       out.textContent =
         `Key: ${key}\n` +
         `First occurrence starts at index: ${hit.pos} (0-based)\n\n` +
