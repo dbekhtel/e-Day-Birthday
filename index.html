@@ -4,13 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Find Your e Day</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-    input, button { font-size: 16px; padding: 10px 12px; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    pre { background: #111; color: #eee; padding: 12px; border-radius: 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
-    .small { color: #555; }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <h1>Find Your e Day</h1>
@@ -21,6 +15,8 @@
       <input id="date" type="date" />
     </label>
     <button id="go">Search</button>
+    <button id="top">Back to top</button>
+
   </div>
 
   <p class="small">
@@ -29,105 +25,6 @@
 
   <pre id="out">Loading digits…</pre>
 
-  <script>
-    let eDigits = null;
-
-    const out = document.getElementById("out");
-    const btn = document.getElementById("go");
-    const dateInput = document.getElementById("date");
-
-    // Show hard errors instead of silently "sticking"
-    window.addEventListener("error", (e) => {
-      out.textContent = `JS error: ${e.message}`;
-      btn.disabled = true;
-    });
-    window.addEventListener("unhandledrejection", (e) => {
-      const msg = e.reason?.message ?? String(e.reason);
-      out.textContent = `Promise error: ${msg}`;
-      btn.disabled = true;
-    });
-
-    function mdyyKeyFromISO(iso) {
-      // iso: "YYYY-MM-DD"
-      const [Y, M, D] = iso.split("-").map(x => parseInt(x, 10));
-      const yy = (Y % 100).toString().padStart(2, "0");
-      // M and D are NOT padded
-      return `${M}${D}${yy}`;
-    }
-
-    async function loadDigits() {
-      // Robust URL for GitHub Pages project sites
-      const digitsUrl = new URL("eMillionDigits.txt", window.location.href).toString();
-
-      out.textContent = `Fetching: ${digitsUrl}`;
-      const res = await fetch(digitsUrl, { cache: "no-store" });
-
-      if (!res.ok) throw new Error(`Couldn't fetch digits file: ${res.status}`);
-
-      let txt = await res.text();
-
-      // Remove whitespace and decimal point if present
-      txt = txt.replace(/\s+/g, "").replace(/\./g, "");
-
-      if (!/^\d+$/.test(txt)) {
-        throw new Error("Digits file doesn't look like digits after cleaning.");
-      }
-
-      return txt;
-    }
-
-    // Return a string that STARTS at the match and continues after it.
-    function searchKey(key, after = 200) {
-      const pos = eDigits.indexOf(key);
-      if (pos === -1) return null;
-
-      const start = pos; // start at the birthday match
-      const end = Math.min(eDigits.length, pos + key.length + after);
-
-      const shown = eDigits.slice(start, end);
-
-      return { pos, shown };
-    }
-
-    (async () => {
-      try {
-        eDigits = await loadDigits();
-        out.textContent = `Loaded ${eDigits.length.toLocaleString()} digits.\nPick a date and click Search.`;
-      } catch (e) {
-        out.textContent = `Error loading digits: ${e.message}`;
-        btn.disabled = true;
-      }
-    })();
-
-    btn.addEventListener("click", () => {
-      const iso = dateInput.value;
-
-      if (!eDigits) {
-        out.textContent = "Digits aren't loaded yet (or failed to load).";
-        return;
-      }
-      if (!iso) {
-        out.textContent = "Pick a date first.";
-        return;
-      }
-
-      const key = mdyyKeyFromISO(iso);
-      const hit = searchKey(key, 400); // show 400 digits AFTER the birthday
-
-      if (!hit) {
-        out.textContent = `Key: ${key}\nNot found in the loaded digits.`;
-        return;
-      }
-
-      // Optional: visually mark the key in the output
-      const marked = hit.shown.replace(key, `[${key}]`);
-
-      out.textContent =
-        `Key: ${key}\n` +
-        `First occurrence starts at index: ${hit.pos} (0-based)\n\n` +
-        `Digits starting at your birthday:\n` +
-        marked;
-    });
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
