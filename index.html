@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Find Your e Day</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    input, button { font-size: 16px; padding: 10px 12px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    pre { background: #111; color: #eee; padding: 12px; border-radius: 10px; overflow: auto; }
+    .small { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Find Your e Day</h1>
+
+  <div class="row">
+    <label>
+      Date:
+      <input id="date" type="date" />
+    </label>
+    <button id="go">Search</button>
+  </div>
+
+  <p class="small">
+    This loads <code>eMillionDigits.txt</code> in your browser and searches for the pattern <code>M D YY</code>.
+  </p>
+
+  <pre id="out">Loading digits…</pre>
+
+  <script>
+    let eDigits = null;
+
+    function mdyyKeyFromISO(iso) {
+      // iso: "YYYY-MM-DD"
+      const [Y, M, D] = iso.split("-").map(x => parseInt(x, 10));
+      const yy = (Y % 100).toString().padStart(2, "0");
+      // M and D are NOT padded
+      return `${M}${D}${yy}`;
+    }
+
+    async function loadDigits() {
+      const res = await fetch("eMillionDigits.txt", { cache: "force-cache" });
+      if (!res.ok) throw new Error(`Couldn't fetch digits file: ${res.status}`);
+      let txt = await res.text();
+      // clean: remove whitespace and decimal point if present
+      txt = txt.replace(/\s+/g, "").replace(/\./g, "");
+      if (!/^\d+$/.test(txt)) throw new Error("Digits file doesn't look like digits after cleaning.");
+      return txt;
+    }
+
+    function searchKey(key) {
+      const pos = eDigits.indexOf(key);
+      if (pos === -1) return null;
+      // show some context around the match
+      const start = Math.max(0, pos - 60);
+      const end = Math.min(eDigits.length, pos + key.length + 60);
+      return { pos, context: eDigits.slice(start, end), start, end };
+    }
+
+    const out = document.getElementById("out");
+    const btn = document.getElementById("go");
+    const dateInput = document.getElementById("date");
+
+    (async () => {
+      try {
+        eDigits = await loadDigits();
+        out.textContent = `Loaded ${eDigits.length.toLocaleString()} digits.\nPick a date and click Search.`;
+      } catch (e) {
+        out.textContent = `Error loading digits: ${e.message}`;
+        btn.disabled = true;
+      }
+    })();
+
+    btn.addEventListener("click", () => {
+      const iso = dateInput.value;
+      if (!iso) {
+        out.textContent = "Pick a date first.";
+        return;
+      }
+      const key = mdyyKeyFromISO(iso);
+      const hit = searchKey(key);
+      if (!hit) {
+        out.textContent = `Key: ${key}\nNot found in the loaded digits.`;
+        return;
+      }
+      out.textContent =
+        `Key: ${key}\n` +
+        `First occurrence starts at index: ${hit.pos} (0-based)\n\n` +
+        `Context:\n${hit.context}\n\n` +
+        `Match is within the context (look for the key).`;
+    });
+  </script>
+</body>
+</html>
